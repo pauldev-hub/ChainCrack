@@ -1,0 +1,31 @@
+{
+  "name": "chaincrack",
+  "version": "1.0.0",
+  "description": "Real-time competitive word-chain game with AI validation",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/backend",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "install-all": "npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "game",
+    "word-chain",
+    "real-time",
+    "socket.io",
+    "react",
+    "express"
+  ],
+  "author": "pratyush",
+  "license": "ISC"
+}

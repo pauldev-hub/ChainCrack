@@ -1,0 +1,32 @@
+{
+  "name": "chaincrack-backend",
+  "version": "1.0.0",
+  "description": "ChainCrack backend: Express + Socket.IO + SQLite + Groq AI",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node src/server.js",
+    "build": "echo 'No build step needed for backend'",
+    "test": "echo 'Tests not yet configured'"
+  },
+  "keywords": [
+    "backend",
+    "express",
+    "socket.io",
+    "sqlite",
+    "groq"
+  ],
+  "author": "pratyush",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "sqlite3": "^5.1.6",
+    "dotenv": "^16.0.3",
+    "axios": "^1.4.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
