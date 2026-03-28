@@ -1,9 +1,6 @@
 # ChainCrack
 
-[![CI](https://github.com/pauldev-hub/ChainCrack/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/pauldev-hub/ChainCrack/actions)
 [![Release](https://img.shields.io/github/v/release/pauldev-hub/ChainCrack?color=blue)](https://github.com/pauldev-hub/ChainCrack/releases)
-[![Issues](https://img.shields.io/github/issues/pauldev-hub/ChainCrack)](https://github.com/pauldev-hub/ChainCrack/issues)
-[![License](https://img.shields.io/github/license/pauldev-hub/ChainCrack)](https://github.com/pauldev-hub/ChainCrack/blob/master/LICENSE)
 [![Node](https://img.shields.io/badge/node-18%2B-green)](https://nodejs.org/)
 
 A real-time competitive browser game where 2–4 players race to build the shortest logical word chain between two given words. Each step requires a word and a short explanation; submissions are validated and scored by an AI judge with a resilient provider fallback (Groq → Gemini → Llama 3.3 → basic scorer).
@@ -170,10 +167,3 @@ Implementation must follow the project's technical contracts and payload schemas
 This project is released under the ISC License. See the `LICENSE` file for details.
 
 ---
-
-If you'd like, I can also:
-
-- add CI workflow templates, or
-- create a Dockerfile and a `docker-compose` for local dev.
-
-Want me to add one of those next?
