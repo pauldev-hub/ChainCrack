@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { initializeSocket } from '../services/socketService';
+import { getSocket } from '../services/socketService';
 
 /**
  * Hook to manage Socket.IO connection lifecycle
@@ -17,22 +17,26 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const newSocket = initializeSocket();
+    const sharedSocket = getSocket();
+    setSocket(sharedSocket);
+    setIsConnected(sharedSocket.connected);
 
-    newSocket.on('connect', () => {
+    const onConnect = () => {
       setIsConnected(true);
       console.log('✓ Socket connected');
-    });
+    };
 
-    newSocket.on('disconnect', () => {
+    const onDisconnect = () => {
       setIsConnected(false);
       console.log('✗ Socket disconnected');
-    });
+    };
 
-    setSocket(newSocket);
+    sharedSocket.on('connect', onConnect);
+    sharedSocket.on('disconnect', onDisconnect);
 
     return () => {
-      newSocket.disconnect();
+      sharedSocket.off('connect', onConnect);
+      sharedSocket.off('disconnect', onDisconnect);
     };
   }, []);
 
