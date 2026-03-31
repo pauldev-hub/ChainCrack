@@ -1,23 +1,27 @@
 # ChainCrack
 
-[![Release](https://img.shields.io/github/v/release/pauldev-hub/ChainCrack?color=blue)](https://github.com/pauldev-hub/ChainCrack/releases)
-[![Node](https://img.shields.io/badge/node-18%2B-green)](https://nodejs.org/)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socket.io&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
-A real-time competitive browser game where 2–4 players race to build the shortest logical word chain between two given words. Each step requires a word and a short explanation; submissions are validated and scored by an AI judge with a resilient provider fallback (Groq → Gemini → Llama 3.3 → basic scorer).
+A real-time competitive browser game where 2–4 players race to build the shortest logical word chain between two given words. Each step requires a word and a short explanation; submissions are validated and scored by an AI judge with a resilient provider fallback (Groq → Gemini → Llama 3.3 → basic scorer). 
+
+Built with ❤️ by Pratyush — a fun passion project exploring real-time multiplayer and AI-powered gameplay.
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Features](#features)
-- [Roadmap (Future Features)](#roadmap-future-features)
 - [Development](#development)
 - [Environment](#environment)
 - [Build & Deploy](#build--deploy)
 - [Project Structure](#project-structure)
 - [Testing](#testing)
-- [Technical Contracts](#technical-contracts)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Features
 
@@ -28,16 +32,6 @@ A real-time competitive browser game where 2–4 players race to build the short
 - Guest sessions with persistent UUID stored in `localStorage`
 - REST API endpoints for game management, stats, and administration
 
-## Roadmap (Future Features)
-
-- Single-command Docker development & production builds
-- Player accounts, profiles, and persistent leaderboards
-- Spectator mode and game replay
-- Mobile-first responsive UI and PWA support
-- CI/CD pipelines, automated releases, and deploy previews
-- Model A/B testing and scoring telemetry for fairness
-- Internationalization and accessibility improvements
-- Rate limiting, caching, and batched AI validation
 
 ## Quick Start
 
@@ -99,8 +93,6 @@ VITE_API_URL=http://localhost:5000
 VITE_WS_URL=ws://localhost:5000
 ```
 
-> NOTE: Do not commit `.env` files or API keys to source control.
-
 ## Build & Deploy
 
 Build both packages for production:
@@ -124,24 +116,67 @@ npm --workspace=packages/frontend preview
 ## Project Structure
 
 ```
-packages/
-├── backend/        # Express + Socket.IO + SQLite
-│   ├── src/
-│   │   ├── server.js
-   │   ├── routes/
-   │   ├── services/
-   │   │   ├── ai/
-   │   │   └── game/
-   │   └── db/
-   └── package.json
-└── frontend/       # React + Vite + Tailwind
-    ├── public/
-    ├── src/
-    │   ├── components/
-    │   ├── pages/
-    │   └── services/
-    └── package.json
+ChainCrack/
+├── packages/
+│   ├── backend/               # 🔧 Node.js + Express + Socket.IO + SQLite
+│   │   ├── src/
+│   │   │   ├── server.js      # Express app & Socket.IO setup
+│   │   │   ├── db/
+│   │   │   │   ├── init.js    # SQLite initialization & migrations
+│   │   │   │   └── queries.js # Raw SQL queries
+│   │   │   ├── routes/        # REST API endpoints
+│   │   │   │   ├── auth.js
+│   │   │   │   ├── games.js
+│   │   │   │   ├── players.js
+│   │   │   │   ├── stats.js
+│   │   │   │   └── leaderboard.js
+│   │   │   ├── services/      # Business logic
+│   │   │   │   ├── ai/        # Multi-provider LLM validation
+│   │   │   │   ├── game/      # Game logic & state management
+│   │   │   │   ├── player.js
+│   │   │   │   ├── stats.js
+│   │   │   │   └── wordService.js
+│   │   │   ├── types/         # JSDoc type definitions
+│   │   │   └── utils/         # Helper utilities
+│   │   ├── .env.example
+│   │   └── package.json
+│   │
+│   └── frontend/              # ⚛️ React + Vite + Tailwind CSS
+│       ├── src/
+│       │   ├── components/    # Reusable React components
+│       │   ├── pages/         # Page-level layouts
+│       │   │   ├── Game.jsx
+│       │   │   ├── Home.jsx
+│       │   │   ├── Lobby.jsx
+│       │   │   ├── Leaderboard.jsx
+│       │   │   ├── Results.jsx
+│       │   │   └── Vote.jsx
+│       │   ├── hooks/         # Custom React hooks
+│       │   ├── services/      # API & Socket.IO client
+│       │   ├── types/         # JSDoc type definitions
+│       │   ├── App.jsx
+│       │   ├── index.css      # Global styles
+│       │   └── main.jsx
+│       ├── public/            # Static assets
+│       ├── index.html
+│       ├── vite.config.js
+│       ├── tailwind.config.js
+│       ├── postcss.config.js
+│       ├── .env.example
+│       └── package.json
+│
+├── package.json               # Monorepo root
+├── README.md                  # This file
+└── LICENSE
 ```
+
+### Architecture Overview
+
+- **Backend:** Single-source-of-truth game state in SQLite, server-authoritative via Socket.IO
+- **Frontend:** React components consuming real-time updates from Socket.IO
+- **Database:** SQLite with raw SQL (no ORM) for full control
+- **Real-time:** Socket.IO events keep all players in sync
+- **AI Validation:** Multi-provider fallback chain (Groq → Gemini → Llama 3.3 → basic scorer)
 
 ## Testing
 
@@ -150,10 +185,9 @@ Run the test suite:
 ```bash
 npm run test
 ```
+## Disclaimer
 
-## Technical Contracts
-
-Implementation must follow the project's technical contracts and payload schemas: see [.github/instructions/technical-contracts.instructions.md](.github/instructions/technical-contracts.instructions.md).
+ This is a personal hobby project built for learning and portfolio purposes. AI validations may not always be accurate and the game may contain bugs.
 
 ## Contributing
 
@@ -162,8 +196,5 @@ Implementation must follow the project's technical contracts and payload schemas
 - Run tests and linters before opening a PR
 - Open an issue to discuss larger changes first
 
-## License
-
-This project is released under the ISC License. See the `LICENSE` file for details.
 
 ---
