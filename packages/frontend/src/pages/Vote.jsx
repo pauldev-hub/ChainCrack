@@ -115,6 +115,31 @@ export default function Vote({ code, navigate }) {
   const [error, setError] = useState('');
 
   const gameIdRef = React.useRef('');
+  const startWordRef = React.useRef('');
+  const endWordRef = React.useRef('');
+  const chainsRef = React.useRef([]);
+  const voteCountsRef = React.useRef({});
+  const voteEndsAtRef = React.useRef(null);
+
+  useEffect(() => {
+    startWordRef.current = startWord;
+  }, [startWord]);
+
+  useEffect(() => {
+    endWordRef.current = endWord;
+  }, [endWord]);
+
+  useEffect(() => {
+    chainsRef.current = chains;
+  }, [chains]);
+
+  useEffect(() => {
+    voteCountsRef.current = voteCounts;
+  }, [voteCounts]);
+
+  useEffect(() => {
+    voteEndsAtRef.current = voteEndsAt;
+  }, [voteEndsAt]);
 
   const updateGameId = React.useCallback((nextGameId) => {
     const resolved = String(nextGameId || '');
@@ -133,12 +158,12 @@ export default function Vote({ code, navigate }) {
       code: payload.code || roomCode,
       gameId: resolvedGameId,
       phase: 'results',
-      startWord,
-      endWord,
-      voteCounts: payload.voteCounts || voteCounts,
+      startWord: startWordRef.current,
+      endWord: endWordRef.current,
+      voteCounts: payload.voteCounts || voteCountsRef.current,
     });
     navigate(`/results/${encodeURIComponent(resolvedGameId)}`);
-  }, [endWord, navigate, roomCode, startWord, voteCounts]);
+  }, [navigate, roomCode]);
 
   const activePlayers = useMemo(
     () => (Array.isArray(players) ? players : []).filter((player) => player.is_active !== false),
@@ -264,7 +289,7 @@ export default function Vote({ code, navigate }) {
         startWord: state.game.start_word,
         endWord: state.game.end_word,
         revealChains: fallbackChains,
-        voteCounts,
+        voteCounts: voteCountsRef.current,
         voteEndsAt: state.game.vote_phase_ends_at || null,
       });
     };
@@ -280,11 +305,11 @@ export default function Vote({ code, navigate }) {
         code: roomCode,
         gameId: payload.gameId || gameIdRef.current,
         phase: 'vote',
-        startWord,
-        endWord,
+        startWord: startWordRef.current,
+        endWord: endWordRef.current,
         revealChains: normalized,
-        voteCounts,
-        voteEndsAt,
+        voteCounts: voteCountsRef.current,
+        voteEndsAt: voteEndsAtRef.current,
       });
     };
 
@@ -301,10 +326,10 @@ export default function Vote({ code, navigate }) {
         code: roomCode,
         gameId: payload.gameId || gameIdRef.current,
         phase: 'vote',
-        startWord,
-        endWord,
-        revealChains: chains.length > 0 ? chains : (existing?.revealChains || []),
-        voteCounts: existing?.voteCounts || voteCounts,
+        startWord: startWordRef.current,
+        endWord: endWordRef.current,
+        revealChains: chainsRef.current.length > 0 ? chainsRef.current : (existing?.revealChains || []),
+        voteCounts: existing?.voteCounts || voteCountsRef.current,
         voteEndsAt: payload.voteEndsAt || null,
       });
     };
@@ -331,11 +356,11 @@ export default function Vote({ code, navigate }) {
         code: roomCode,
         gameId: payload.gameId || gameIdRef.current,
         phase: 'vote',
-        startWord,
-        endWord,
-        revealChains: chains,
+        startWord: startWordRef.current,
+        endWord: endWordRef.current,
+        revealChains: chainsRef.current,
         voteCounts: nextVoteCounts,
-        voteEndsAt,
+        voteEndsAt: voteEndsAtRef.current,
       });
       setIsSubmitting(false);
     };
@@ -392,18 +417,13 @@ export default function Vote({ code, navigate }) {
       socket.off('error', onError);
     };
   }, [
-    chains,
-    endWord,
     navigate,
     navigateToResults,
     playerId,
     playerName,
     roomCode,
     socket,
-    startWord,
     updateGameId,
-    voteCounts,
-    voteEndsAt,
   ]);
 
   const toggleVoteTarget = (targetId) => {

@@ -102,6 +102,21 @@ export default function Reveal({ code, navigate }) {
   const [error, setError] = useState('');
 
   const gameIdRef = React.useRef('');
+  const startWordRef = React.useRef('');
+  const endWordRef = React.useRef('');
+  const chainsRef = React.useRef([]);
+
+  useEffect(() => {
+    startWordRef.current = startWord;
+  }, [startWord]);
+
+  useEffect(() => {
+    endWordRef.current = endWord;
+  }, [endWord]);
+
+  useEffect(() => {
+    chainsRef.current = chains;
+  }, [chains]);
 
   const updateGameId = React.useCallback((nextGameId) => {
     const resolved = String(nextGameId || '');
@@ -120,12 +135,12 @@ export default function Reveal({ code, navigate }) {
       code: payload.code || roomCode,
       gameId: resolvedGameId,
       phase: 'results',
-      startWord,
-      endWord,
+      startWord: startWordRef.current,
+      endWord: endWordRef.current,
       voteCounts: payload.voteCounts || {},
     });
     navigate(`/results/${encodeURIComponent(resolvedGameId)}`);
-  }, [endWord, navigate, roomCode, startWord]);
+  }, [navigate, roomCode]);
 
   useEffect(() => {
     if (!playerName) {
@@ -240,8 +255,8 @@ export default function Reveal({ code, navigate }) {
         code: roomCode,
         gameId: payload.gameId || gameIdRef.current,
         phase: 'reveal',
-        startWord,
-        endWord,
+        startWord: startWordRef.current,
+        endWord: endWordRef.current,
         revealChains: normalized,
       });
     };
@@ -256,9 +271,9 @@ export default function Reveal({ code, navigate }) {
         code: roomCode,
         gameId: payload.gameId || gameIdRef.current,
         phase: 'vote',
-        startWord,
-        endWord,
-        revealChains: chains.length > 0 ? chains : (existing?.revealChains || []),
+        startWord: startWordRef.current,
+        endWord: endWordRef.current,
+        revealChains: chainsRef.current.length > 0 ? chainsRef.current : (existing?.revealChains || []),
         voteCounts: existing?.voteCounts || {},
         voteEndsAt: payload.voteEndsAt || null,
       });
@@ -312,15 +327,12 @@ export default function Reveal({ code, navigate }) {
       socket.off('error', onError);
     };
   }, [
-    chains,
-    endWord,
     navigate,
     navigateToResults,
     playerId,
     playerName,
     roomCode,
     socket,
-    startWord,
     updateGameId,
   ]);
 

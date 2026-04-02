@@ -65,6 +65,53 @@ function onceWithTimeout(socket, eventName, timeoutMs = 10000, expectedAction = 
   });
 }
 
+function ensureSocketConnected(socket, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    if (socket.connected) {
+      resolve();
+      return;
+    }
+
+    let completed = false;
+
+    const timer = setTimeout(() => {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
+      reject(new Error('Socket connection timed out'));
+    }, timeoutMs);
+
+    const onConnect = () => {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      clearTimeout(timer);
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
+      resolve();
+    };
+
+    const onConnectError = (error) => {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      clearTimeout(timer);
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
+      reject(new Error(error?.message || 'Socket connection failed'));
+    };
+
+    socket.once('connect', onConnect);
+    socket.once('connect_error', onConnectError);
+    socket.connect();
+  });
+}
+
 /**
  * Home Page
  * @param {{navigate: (path: string) => void}} props
@@ -106,6 +153,7 @@ export default function Home({ navigate }) {
       setError('');
       setIsBusy(true);
 
+      await ensureSocketConnected(socket);
       const guest = await authorizeGuest();
       const createdPromise = onceWithTimeout(
         socket,
@@ -176,6 +224,7 @@ export default function Home({ navigate }) {
       setError('');
       setIsBusy(true);
 
+      await ensureSocketConnected(socket);
       const guest = await authorizeGuest();
       const code = normalizeRoomCode(roomCode);
       const joinedPromise = onceWithTimeout(

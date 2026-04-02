@@ -459,8 +459,7 @@ io.on('connection', (socket) => {
       const started = await startRoom({ gameId, playerId });
       const host = await getRoomHost({ gameId });
       const gameState = await requestGameState({ gameId });
-
-      io.to(gameId).emit('room:started', {
+      const startedPayload = {
         code: gameRef.code,
         gameId,
         hostId: host.host?.id || null,
@@ -470,8 +469,13 @@ io.on('connection', (socket) => {
         raceEndsAt: started.raceEndsAt,
         startWord: gameState.game?.start_word || null,
         endWord: gameState.game?.end_word || null,
-      });
-      io.to(gameId).emit('room:state', gameState);
+      };
+
+      // Emit directly to starter to avoid race with room membership propagation in instant solo start.
+      socket.emit('room:started', startedPayload);
+      socket.emit('room:state', gameState);
+      socket.to(gameId).emit('room:started', startedPayload);
+      socket.to(gameId).emit('room:state', gameState);
       await startRoomLifecycle(gameId, gameRef.code);
     } catch (error) {
       socket.emit('error', toSocketErrorPayload(error, { action: 'room:start' }));

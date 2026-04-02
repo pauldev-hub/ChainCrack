@@ -20,11 +20,11 @@
   "author": "pratyush",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.14.0",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "socket.io": "^4.6.1",
     "sqlite3": "^5.1.6",
-    "dotenv": "^16.0.3",
-    "axios": "^1.4.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

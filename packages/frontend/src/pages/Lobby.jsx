@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Copy, Users, Play } from 'lucide-react';
+import { Copy, Users, Play, ListOrdered, ArrowRight } from 'lucide-react';
 import {
   getSocket,
   matchesRoomPayload,
@@ -354,6 +354,31 @@ export default function Lobby({ code, navigate }) {
             <p className="mt-2 text-sm text-slate-400">Need at least 1 active player to start.</p>
           )}
         </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            className="btn-secondary inline-flex items-center justify-center gap-2"
+            onClick={() => navigate('/leaderboard')}
+          >
+            <ListOrdered size={16} />
+            <span>Leaderboard</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-secondary inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!gameId}
+            onClick={() => navigate(`/replay/${encodeURIComponent(gameId)}`)}
+          >
+            <ArrowRight size={16} />
+            <span>Open Replay</span>
+          </button>
+        </div>
+
+        {!gameId && (
+          <p className="mt-2 text-sm text-slate-400">Replay unlocks after the room state is fully synced.</p>
+        )}
 
         {error && (
           <p className="mt-4 rounded border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-500">
