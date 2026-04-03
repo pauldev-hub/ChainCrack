@@ -12,7 +12,8 @@
     "dev": "npm run dev --workspaces",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "install-all": "npm install"
+    "install-all": "npm install",
+    "start:prod": "npm --workspace=packages/frontend run build && npm --workspace=packages/backend start"
   },
   "engines": {
     "node": ">=18.0.0",

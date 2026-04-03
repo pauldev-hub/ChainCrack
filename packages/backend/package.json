@@ -6,6 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node src/server.js",
+    "start": "node src/server.js",
     "build": "echo 'No build step needed for backend'",
     "test": "node --test src/**/*.test.js",
     "test:watch": "node --test --watch src/**/*.test.js"

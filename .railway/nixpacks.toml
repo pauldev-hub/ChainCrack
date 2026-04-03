@@ -1,0 +1,5 @@
+[build]
+cmds = ["npm install", "npm run build"]
+
+[start]
+cmd = "npm run start:prod"
