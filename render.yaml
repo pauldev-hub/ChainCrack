@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: chaincrack-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm --workspace=packages/backend start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+        scope: runtime_and_build_time
+      - key: DATABASE_PATH
+        value: /tmp/gamestate.db
+      - key: AI_VALIDATION_TIMEOUT_MS
+        value: 10000
+      - key: ROOM_EXPIRY_MS
+        value: 300000
+      - key: ROOM_GAME_SECONDS
+        value: 90
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: GROQ_FALLBACK_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: LLAMA_MODEL
+        value: meta-llama/Llama-3.3-70b-Instruct-Turbo
+      - key: LLAMA_BASE_URL
+        value: https://api.together.xyz/v1
+      # SECRET env vars (add via Render dashboard):
+      # CORS_ORIGINS: https://your-app.onrender.com
+      # GROQ_API_KEY: your_key
+      # GEMINI_API_KEY: your_key
+      # LLAMA_API_KEY: your_key
