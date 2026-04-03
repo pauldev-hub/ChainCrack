@@ -12,8 +12,13 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { startWord, endWord, maxPlayers } = req.body || {};
-    const data = await createGame({ startWord, endWord, maxPlayers });
+    const {
+      startWord,
+      endWord,
+      maxPlayers,
+      mode,
+    } = req.body || {};
+    const data = await createGame({ startWord, endWord, maxPlayers, mode });
     res.status(201).json({
       success: true,
       data,
