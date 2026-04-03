@@ -51,6 +51,8 @@ import {
   isValidUuid,
   isValidRoomCode,
   normalizeRoomCode,
+  normalizeGameMode,
+  normalizeMemorySubmission,
 } from '../../utils/validation.js';
 
 const ROOM_EXPIRY_MS = Number(process.env.ROOM_EXPIRY_MS || 300000);
@@ -59,6 +61,9 @@ const RACE_SECONDS = Number(process.env.RACE_PHASE_SECONDS || 60);
 const REVEAL_DELAY_MS = Number(process.env.REVEAL_DELAY_MS || 3000);
 const VOTE_SECONDS = Number(process.env.VOTE_PHASE_SECONDS || 30);
 const AI_WAIT_TIMEOUT_MS = Number(process.env.AI_PHASE_WAIT_TIMEOUT_MS || 10000);
+const MEMORY_REVEAL_MS = Number(process.env.MEMORY_REVEAL_MS || 20000);
+const MEMORY_RECALL_MS = Number(process.env.MEMORY_RECALL_MS || 30000);
+const MEMORY_WORD_COUNT = Number(process.env.MEMORY_WORD_COUNT || 10);
 
 const roomExpiryTimers = new Map();
 const gameValidationCounts = new Map();
@@ -206,6 +211,85 @@ function toIsoAfterSeconds(seconds) {
 
 function toIsoAfterMs(ms) {
   return new Date(Date.now() + ms).toISOString();
+}
+
+function createFrequencyMap(words) {
+  const map = new Map();
+  for (const word of words) {
+    if (!word) {
+      continue;
+    }
+    map.set(word, Number(map.get(word) || 0) + 1);
+  }
+  return map;
+}
+
+/**
+ * Computes memory-round score with exact and misplaced matches.
+ * @param {string[]} targetWords
+ * @param {string[]} submittedWords
+ * @returns {{exactMatches:number,misplacedMatches:number,fullOrderBonus:number,totalScore:number}}
+ */
+export function scoreMemorySubmission(targetWords, submittedWords) {
+  const safeTarget = Array.isArray(targetWords) ? targetWords : [];
+  const safeSubmitted = Array.isArray(submittedWords) ? submittedWords : [];
+  const length = Math.max(safeTarget.length, safeSubmitted.length);
+  const target = [];
+  const submitted = [];
+  for (let index = 0; index < length; index += 1) {
+    target.push(String(safeTarget[index] || '').trim().toLowerCase());
+    submitted.push(String(safeSubmitted[index] || '').trim().toLowerCase());
+  }
+
+  let exactMatches = 0;
+  const unmatchedTarget = [];
+  const unmatchedSubmitted = [];
+
+  for (let index = 0; index < length; index += 1) {
+    if (target[index] && target[index] === submitted[index]) {
+      exactMatches += 1;
+      continue;
+    }
+
+    unmatchedTarget.push(target[index]);
+    unmatchedSubmitted.push(submitted[index]);
+  }
+
+  const targetFreq = createFrequencyMap(unmatchedTarget);
+  let misplacedMatches = 0;
+  for (const word of unmatchedSubmitted) {
+    if (!word) {
+      continue;
+    }
+
+    const available = Number(targetFreq.get(word) || 0);
+    if (available <= 0) {
+      continue;
+    }
+
+    misplacedMatches += 1;
+    targetFreq.set(word, available - 1);
+  }
+
+  const fullOrderBonus = exactMatches === safeTarget.length && safeTarget.length > 0 ? 5 : 0;
+  const totalScore = exactMatches + (misplacedMatches * 0.5) + fullOrderBonus;
+
+  return {
+    exactMatches,
+    misplacedMatches,
+    fullOrderBonus,
+    totalScore,
+  };
+}
+
+/**
+ * Normalizes submission slots to fixed word-count length.
+ * @param {unknown} words
+ * @param {number} wordCount
+ * @returns {string[]}
+ */
+export function normalizeMemorySubmissionWords(words, wordCount = MEMORY_WORD_COUNT) {
+  return normalizeMemorySubmission(words, wordCount);
 }
 
 function groupChainsByPlayer(chains, activePlayers) {
@@ -409,7 +493,14 @@ async function buildRevealPayload(gameId) {
  * @returns {Promise<{gameId:string,code:string,status:string,startWord:string,endWord:string}>}
  */
 export const createGame = async (payload = {}) => {
-  const { startWord, endWord, maxPlayers = 4, gameId, code } = payload;
+  const {
+    startWord,
+    endWord,
+    maxPlayers = 4,
+    gameId,
+    code,
+    mode,
+  } = payload;
 
   if (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 4) {
     throw createGameError('maxPlayers must be between 2 and 4', 'VALIDATION_ERROR', 400);
@@ -463,6 +554,7 @@ export const createGame = async (payload = {}) => {
     status: createdGame.status,
     startWord: createdGame.start_word,
     endWord: createdGame.end_word,
+    mode: normalizeGameMode(mode),
   };
 };
 
@@ -1087,7 +1179,7 @@ export async function getRoomHost(payload) {
  * @returns {Promise<{gameId:string,status:string,startedAt:string|null,raceEndsAt:string}>}
  */
 export async function startRoom(payload) {
-  const { gameId, playerId } = payload;
+  const { gameId, playerId, mode } = payload;
   ensureUuid(gameId, 'gameId');
   ensureUuid(playerId, 'playerId');
 
@@ -1112,6 +1204,7 @@ export async function startRoom(payload) {
 
   const updatedGame = await updateGameStatus(gameId, 'active');
   const raceEndsAt = toIsoAfterSeconds(RACE_SECONDS);
+  const normalizedMode = normalizeGameMode(mode);
   await updateGamePhaseState({
     gameId,
     phase: 'race',
@@ -1127,6 +1220,7 @@ export async function startRoom(payload) {
     status: updatedGame.status,
     startedAt: updatedGame.started_at,
     raceEndsAt,
+    mode: normalizedMode,
   };
 }
 
@@ -1161,6 +1255,9 @@ export function getPhaseConfig() {
     raceSeconds: RACE_SECONDS,
     revealDelayMs: REVEAL_DELAY_MS,
     voteSeconds: VOTE_SECONDS,
+    memoryRevealMs: MEMORY_REVEAL_MS,
+    memoryRecallMs: MEMORY_RECALL_MS,
+    memoryWordCount: MEMORY_WORD_COUNT,
   };
 }
 
@@ -1194,5 +1291,7 @@ export default {
   startRoom,
   getPhaseState,
   getPhaseConfig,
+  scoreMemorySubmission,
+  normalizeMemorySubmissionWords,
   clearRoomTimers,
 };
