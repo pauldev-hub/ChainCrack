@@ -165,6 +165,10 @@ export default function Game({ code, navigate }) {
       setStartWord(cachedRoom.startWord || '');
       setEndWord(cachedRoom.endWord || '');
       setStatus(cachedRoom.status || 'waiting');
+      if (cachedRoom.gameMode === 'memory' && cachedRoom.status === 'active') {
+        navigate(`/memory/${encodeURIComponent(roomCode)}`);
+        return undefined;
+      }
     }
 
     const cachedGameplay = getGameplayState();
@@ -184,6 +188,11 @@ export default function Game({ code, navigate }) {
       setStatus(payload.status || 'waiting');
       setPhase(payload.phase || 'race');
 
+      if (payload.mode === 'memory') {
+        navigate(`/memory/${encodeURIComponent(roomCode)}`);
+        return;
+      }
+
       setActiveRoom({
         code: payload.code || roomCode,
         gameId: payload.gameId,
@@ -191,6 +200,7 @@ export default function Game({ code, navigate }) {
         startWord: payload.startWord,
         endWord: payload.endWord,
         status: payload.status,
+        gameMode: payload.mode || 'race',
       });
     };
 
@@ -213,12 +223,26 @@ export default function Game({ code, navigate }) {
       setPhase(state.game.phase || 'race');
       setPlayers(Array.isArray(state.players) ? state.players : []);
 
+      if (state.game.mode === 'memory') {
+        setActiveRoom({
+          code: state.game.code || roomCode,
+          gameId: state.game.id,
+          startWord: state.game.start_word,
+          endWord: state.game.end_word,
+          status: state.game.status,
+          gameMode: 'memory',
+        });
+        navigate(`/memory/${encodeURIComponent(roomCode)}`);
+        return;
+      }
+
       setActiveRoom({
         code: state.game.code || roomCode,
         gameId: state.game.id,
         startWord: state.game.start_word,
         endWord: state.game.end_word,
         status: state.game.status,
+        gameMode: state.game.mode || 'race',
       });
 
       const nextPhase = state.game.phase || 'race';
