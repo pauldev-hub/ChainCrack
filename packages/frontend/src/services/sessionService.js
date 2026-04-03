@@ -57,7 +57,7 @@ export function getPlayerName() {
 
 /**
  * Persists active room identity for routing and socket payloads.
- * @param {{code:string,gameId:string,startWord?:string,endWord?:string,hostId?:string|null,status?:string}} room
+ * @param {{code:string,gameId:string,startWord?:string,endWord?:string,hostId?:string|null,status?:string,gameMode?:string|null}} room
  * @returns {void}
  */
 export function setActiveRoom(room) {
@@ -68,6 +68,7 @@ export function setActiveRoom(room) {
     endWord: room?.endWord || null,
     hostId: room?.hostId || null,
     status: room?.status || null,
+    gameMode: room?.gameMode || null,
   };
 
   localStorage.setItem(ACTIVE_ROOM_KEY, JSON.stringify(payload));
@@ -75,7 +76,7 @@ export function setActiveRoom(room) {
 
 /**
  * Returns active room identity if available.
- * @returns {{code:string,gameId:string,startWord?:string|null,endWord?:string|null,hostId?:string|null,status?:string|null}|null}
+ * @returns {{code:string,gameId:string,startWord?:string|null,endWord?:string|null,hostId?:string|null,status?:string|null,gameMode?:string|null}|null}
  */
 export function getActiveRoom() {
   const raw = localStorage.getItem(ACTIVE_ROOM_KEY);
@@ -147,6 +148,7 @@ export function clearLastResults() {
  *   revealChains?: Array,
  *   voteCounts?: Record<string, number>,
  *   voteEndsAt?: string|null,
+ *   gameMode?: string|null,
  *   updatedAt?: string,
  * }} payload
  * @returns {void}
@@ -163,6 +165,7 @@ export function setGameplayState(payload) {
       ? payload.voteCounts
       : {},
     voteEndsAt: payload?.voteEndsAt || null,
+    gameMode: payload?.gameMode || null,
     updatedAt: payload?.updatedAt || new Date().toISOString(),
   };
 
@@ -180,6 +183,7 @@ export function setGameplayState(payload) {
  *   revealChains: Array,
  *   voteCounts: Record<string, number>,
  *   voteEndsAt: string|null,
+ *   gameMode: string|null,
  *   updatedAt: string,
  * }|null}
  */
@@ -205,6 +209,7 @@ export function getGameplayState() {
         ? parsed.voteCounts
         : {},
       voteEndsAt: parsed.voteEndsAt || null,
+      gameMode: parsed.gameMode || null,
       updatedAt: parsed.updatedAt || null,
     };
   } catch {
