@@ -11,6 +11,7 @@ import React from 'react';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
+import Memory from './pages/Memory';
 import Reveal from './pages/Reveal';
 import Vote from './pages/Vote';
 import Results from './pages/Results';
@@ -30,6 +31,11 @@ function parseRoute(pathname) {
   const gameMatch = pathname.match(/^\/game\/([^/]+)$/);
   if (gameMatch) {
     return { page: 'game', code: decodeURIComponent(gameMatch[1]) };
+  }
+
+  const memoryMatch = pathname.match(/^\/memory\/([^/]+)$/);
+  if (memoryMatch) {
+    return { page: 'memory', code: decodeURIComponent(memoryMatch[1]) };
   }
 
   const revealMatch = pathname.match(/^\/reveal\/([^/]+)$/);
@@ -105,6 +111,7 @@ export default function App() {
         {route.page === 'home' && <Home navigate={navigate} />}
         {route.page === 'lobby' && <Lobby code={route.code} navigate={navigate} />}
         {route.page === 'game' && <Game code={route.code} navigate={navigate} />}
+        {route.page === 'memory' && <Memory code={route.code} navigate={navigate} />}
         {route.page === 'reveal' && <Reveal code={route.code} navigate={navigate} />}
         {route.page === 'vote' && <Vote code={route.code} navigate={navigate} />}
         {route.page === 'results' && <Results gameId={route.gameId} navigate={navigate} />}
