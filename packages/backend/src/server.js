@@ -16,7 +16,12 @@ import {
 } from './db/init.js';
 import apiRoutes from './routes/index.js';
 import { sendHttpError } from './utils/http.js';
-import { isValidUuid } from './utils/validation.js';
+import {
+  isValidUuid,
+  normalizeGameMode,
+  normalizeMemoryRevealVariant,
+} from './utils/validation.js';
+import { getRandomMemoryWords } from './services/wordService.js';
 import {
   createGame,
   resolveGameReference,
@@ -35,6 +40,8 @@ import {
   startRoom,
   getPhaseConfig,
   clearRoomTimers,
+  scoreMemorySubmission,
+  normalizeMemorySubmissionWords,
 } from './services/game/index.js';
 
 // Load environment variables
@@ -50,6 +57,8 @@ const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 
 
 const socketSession = new Map();
 const roomPhaseTimers = new Map();
+const memoryGameModes = new Map();
+const memoryRounds = new Map();
 
 function toSocketErrorPayload(error, data) {
   const code = String(error?.code || 'SERVER_ERROR');
@@ -154,9 +163,55 @@ function emitGameTick(gameId, code, remainingSeconds, phase) {
   });
 }
 
+function emitMemoryTick(gameId, code, secondsLeft, phase) {
+  io.to(gameId).emit('memory:tick', {
+    gameId,
+    code,
+    secondsLeft,
+    phase,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+function getGameMode(gameId) {
+  return memoryGameModes.get(gameId) || 'race';
+}
+
+function decorateGameState(gameState, gameId) {
+  if (!gameState?.game) {
+    return gameState;
+  }
+
+  const mode = getGameMode(gameId || gameState.game.id);
+  const memory = memoryRounds.get(gameId || gameState.game.id) || null;
+  return {
+    ...gameState,
+    game: {
+      ...gameState.game,
+      mode,
+      ...(mode === 'memory' && memory
+        ? {
+            phase: memory.phase,
+            reveal_variant: memory.revealVariant,
+            memory_word_count: memory.words.length,
+            memory_words: memory.phase === 'memory_reveal' ? memory.words : [],
+            memory_reveal_ends_at: memory.revealEndsAt,
+            memory_recall_ends_at: memory.recallEndsAt,
+          }
+        : {}),
+    },
+  };
+}
+
+function clearMemoryRound(gameId) {
+  memoryRounds.delete(gameId);
+}
+
 function stopRoomLifecycle(gameId) {
   const timers = roomPhaseTimers.get(gameId);
   if (!timers) {
+    clearMemoryRound(gameId);
+    memoryGameModes.delete(gameId);
     return;
   }
 
@@ -171,6 +226,8 @@ function stopRoomLifecycle(gameId) {
   }
 
   roomPhaseTimers.delete(gameId);
+  clearMemoryRound(gameId);
+  memoryGameModes.delete(gameId);
 }
 
 async function emitScoreUpdate(gameId) {
@@ -179,7 +236,96 @@ async function emitScoreUpdate(gameId) {
   io.to(gameId).emit('room:scores', scores);
 }
 
-async function startRoomLifecycle(gameId, code) {
+function rankMemoryResults(rows) {
+  const sorted = [...rows].sort((left, right) => {
+    if (Number(right.totalScore || 0) !== Number(left.totalScore || 0)) {
+      return Number(right.totalScore || 0) - Number(left.totalScore || 0);
+    }
+    if (Number(right.exactMatches || 0) !== Number(left.exactMatches || 0)) {
+      return Number(right.exactMatches || 0) - Number(left.exactMatches || 0);
+    }
+    if (Number(right.misplacedMatches || 0) !== Number(left.misplacedMatches || 0)) {
+      return Number(right.misplacedMatches || 0) - Number(left.misplacedMatches || 0);
+    }
+    return String(left.submittedAt || '').localeCompare(String(right.submittedAt || ''));
+  });
+
+  return sorted.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+  }));
+}
+
+function ensureMemorySubmission(state, playerId, submittedWords = []) {
+  if (state.submissions.has(playerId)) {
+    return state.submissions.get(playerId);
+  }
+
+  const normalized = normalizeMemorySubmissionWords(submittedWords, state.words.length);
+  const saved = {
+    words: normalized,
+    submittedAt: new Date().toISOString(),
+  };
+  state.submissions.set(playerId, saved);
+  return saved;
+}
+
+async function finalizeMemoryRound(gameId, code) {
+  const state = memoryRounds.get(gameId);
+  if (!state) {
+    return;
+  }
+
+  const gameState = await requestGameState({ gameId });
+  const players = (gameState?.players || []).filter((player) => player.is_active !== false);
+
+  if (players.length === 0) {
+    stopRoomLifecycle(gameId);
+    return;
+  }
+
+  for (const player of players) {
+    ensureMemorySubmission(state, player.id, []);
+  }
+
+  const scored = players.map((player) => {
+    const submission = state.submissions.get(player.id) || {
+      words: normalizeMemorySubmissionWords([], state.words.length),
+      submittedAt: new Date().toISOString(),
+    };
+    const scoring = scoreMemorySubmission(state.words, submission.words);
+    return {
+      playerId: player.id,
+      playerName: player.name,
+      submittedAt: submission.submittedAt,
+      words: submission.words,
+      exactMatches: scoring.exactMatches,
+      misplacedMatches: scoring.misplacedMatches,
+      fullOrderBonus: scoring.fullOrderBonus,
+      totalScore: scoring.totalScore,
+    };
+  });
+
+  const ranked = rankMemoryResults(scored);
+  const winner = ranked[0] || null;
+  const payload = {
+    gameId,
+    code,
+    mode: 'memory',
+    sequence: state.words,
+    revealVariant: state.revealVariant,
+    finalScores: ranked,
+    winnerId: winner?.playerId || null,
+    winnerName: winner?.playerName || 'Winner',
+    timestamp: new Date().toISOString(),
+  };
+
+  io.to(gameId).emit('memory:results', payload);
+  await endGame({ gameId, winnerId: payload.winnerId || ranked[0]?.playerId || players[0]?.id });
+  stopRoomLifecycle(gameId);
+}
+
+async function startRoomLifecycle(gameId, code, mode = 'race', revealVariant = 'flash_all') {
   if (roomPhaseTimers.has(gameId)) {
     return;
   }
@@ -191,6 +337,81 @@ async function startRoomLifecycle(gameId, code) {
     voteInterval: null,
   };
   roomPhaseTimers.set(gameId, timers);
+
+  if (mode === 'memory') {
+    const words = getRandomMemoryWords(phaseConfig.memoryWordCount);
+    const now = Date.now();
+    const revealEndsAt = new Date(now + phaseConfig.memoryRevealMs).toISOString();
+    const state = {
+      phase: 'memory_reveal',
+      words,
+      revealVariant,
+      revealEndsAt,
+      recallEndsAt: null,
+      submissions: new Map(),
+    };
+    memoryRounds.set(gameId, state);
+
+    io.to(gameId).emit('memory:started', {
+      gameId,
+      code,
+      revealVariant,
+      words,
+      revealMs: phaseConfig.memoryRevealMs,
+      revealEndsAt,
+      wordCount: words.length,
+    });
+
+    let revealRemaining = Math.ceil(phaseConfig.memoryRevealMs / 1000);
+    emitMemoryTick(gameId, code, revealRemaining, 'reveal');
+
+    timers.raceInterval = setInterval(() => {
+      revealRemaining -= 1;
+      emitMemoryTick(gameId, code, Math.max(revealRemaining, 0), 'reveal');
+      if (revealRemaining > 0) {
+        return;
+      }
+
+      if (timers.raceInterval) {
+        clearInterval(timers.raceInterval);
+        timers.raceInterval = null;
+      }
+
+      const recallEndsAt = new Date(Date.now() + phaseConfig.memoryRecallMs).toISOString();
+      state.phase = 'memory_recall';
+      state.recallEndsAt = recallEndsAt;
+      io.to(gameId).emit('memory:hide', {
+        gameId,
+        code,
+        recallEndsAt,
+        recallMs: phaseConfig.memoryRecallMs,
+        wordCount: words.length,
+      });
+
+      let recallRemaining = Math.ceil(phaseConfig.memoryRecallMs / 1000);
+      emitMemoryTick(gameId, code, recallRemaining, 'recall');
+      timers.voteInterval = setInterval(async () => {
+        recallRemaining -= 1;
+        emitMemoryTick(gameId, code, Math.max(recallRemaining, 0), 'recall');
+        if (recallRemaining > 0) {
+          return;
+        }
+
+        if (timers.voteInterval) {
+          clearInterval(timers.voteInterval);
+          timers.voteInterval = null;
+        }
+
+        try {
+          await finalizeMemoryRound(gameId, code);
+        } catch (error) {
+          io.to(gameId).emit('error', toSocketErrorPayload(error, { action: 'memory:finalize' }));
+          stopRoomLifecycle(gameId);
+        }
+      }, 1000);
+    }, 1000);
+    return;
+  }
 
   let raceRemaining = phaseConfig.raceSeconds;
   emitGameTick(gameId, code, raceRemaining, 'race');
@@ -211,7 +432,7 @@ async function startRoomLifecycle(gameId, code) {
     try {
       const revealPayload = await prepareRevealPhase({ gameId });
       io.to(gameId).emit('reveal_chains', revealPayload);
-      const gameState = await requestGameState({ gameId });
+      const gameState = decorateGameState(await requestGameState({ gameId }), gameId);
       io.to(gameId).emit('room:state', gameState);
 
       timers.revealTimeout = setTimeout(async () => {
@@ -281,6 +502,7 @@ async function handleJoinRoom(socket, payload = {}) {
   emitPlayerJoined(gameId, joined);
 
   const { host } = await getRoomHost({ gameId });
+  const mode = getGameMode(gameId);
   socket.emit('room:joined', {
     code: gameRef.code,
     gameId,
@@ -290,6 +512,7 @@ async function handleJoinRoom(socket, payload = {}) {
     playerCount: joined.playerCount,
     status: joined.game?.status || 'waiting',
     phase: joined.game?.phase || 'race',
+    mode,
     startWord: joined.game?.start_word || null,
     endWord: joined.game?.end_word || null,
   });
@@ -406,7 +629,10 @@ io.on('connection', (socket) => {
         startWord: payload.startWord,
         endWord: payload.endWord,
         maxPlayers: payload.maxPlayers,
+        mode: payload.mode,
       });
+
+      memoryGameModes.set(created.gameId, normalizeGameMode(payload.mode));
 
       const roomJoin = await handleJoinRoom(socket, {
         gameId: created.gameId,
@@ -422,6 +648,7 @@ io.on('connection', (socket) => {
         playerName: roomJoin.joined.playerName,
         playerCount: roomJoin.joined.playerCount,
         status: created.status,
+        mode: normalizeGameMode(payload.mode),
         startWord: created.startWord,
         endWord: created.endWord,
       });
@@ -454,17 +681,22 @@ io.on('connection', (socket) => {
       );
       const gameId = gameRef.gameId;
       const playerId = payload.playerId;
+      const gameMode = normalizeGameMode(payload.gameMode || payload.mode);
+      const revealVariant = normalizeMemoryRevealVariant(payload.revealVariant);
+      memoryGameModes.set(gameId, gameMode);
 
       await requireSocketPlayer(socket, { gameId, playerId });
-      const started = await startRoom({ gameId, playerId });
+      const started = await startRoom({ gameId, playerId, mode: gameMode });
       const host = await getRoomHost({ gameId });
-      const gameState = await requestGameState({ gameId });
+      const gameState = decorateGameState(await requestGameState({ gameId }), gameId);
       const startedPayload = {
         code: gameRef.code,
         gameId,
         hostId: host.host?.id || null,
         status: started.status,
-        phase: gameState.game?.phase || 'race',
+        phase: gameMode === 'memory' ? 'memory_reveal' : (gameState.game?.phase || 'race'),
+        mode: gameMode,
+        revealVariant: gameMode === 'memory' ? revealVariant : null,
         startedAt: started.startedAt,
         raceEndsAt: started.raceEndsAt,
         startWord: gameState.game?.start_word || null,
@@ -476,7 +708,7 @@ io.on('connection', (socket) => {
       socket.emit('room:state', gameState);
       socket.to(gameId).emit('room:started', startedPayload);
       socket.to(gameId).emit('room:state', gameState);
-      await startRoomLifecycle(gameId, gameRef.code);
+      await startRoomLifecycle(gameId, gameRef.code, gameMode, revealVariant);
     } catch (error) {
       socket.emit('error', toSocketErrorPayload(error, { action: 'room:start' }));
     }
@@ -491,6 +723,12 @@ io.on('connection', (socket) => {
       const gameId = gameRef.gameId;
       const playerId = payload.playerId;
 
+      if (getGameMode(gameId) === 'memory') {
+        throw Object.assign(new Error('submit_word is unavailable in memory mode'), {
+          code: 'INVALID_OPERATION',
+        });
+      }
+
       await requireSocketPlayer(socket, { gameId, playerId });
       const submissionResult = await submitWord({
         gameId,
@@ -504,6 +742,48 @@ io.on('connection', (socket) => {
       io.to(gameId).emit('scores_updated', submissionResult.scoresUpdated);
     } catch (error) {
       socket.emit('error', toSocketErrorPayload(error, { action: 'submit_word' }));
+    }
+  });
+
+  socket.on('memory:submit', async (payload = {}) => {
+    try {
+      const gameRef = await resolveSocketGameOrSession(
+        payload,
+        socketSession.get(socket.id),
+      );
+      const gameId = gameRef.gameId;
+      const playerId = payload.playerId;
+
+      await requireSocketPlayer(socket, { gameId, playerId });
+
+      if (getGameMode(gameId) !== 'memory') {
+        throw Object.assign(new Error('memory:submit is available only in memory mode'), {
+          code: 'INVALID_OPERATION',
+        });
+      }
+
+      const round = memoryRounds.get(gameId);
+      if (!round || round.phase !== 'memory_recall') {
+        throw Object.assign(new Error('Memory recall phase is not active'), {
+          code: 'INVALID_OPERATION',
+        });
+      }
+
+      if (round.submissions.has(playerId)) {
+        throw Object.assign(new Error('Memory sequence already submitted'), {
+          code: 'INVALID_OPERATION',
+        });
+      }
+
+      const saved = ensureMemorySubmission(round, playerId, payload.words);
+      socket.emit('memory:submit', {
+        gameId,
+        playerId,
+        status: 'accepted',
+        submittedAt: saved.submittedAt,
+      });
+    } catch (error) {
+      socket.emit('error', toSocketErrorPayload(error, { action: 'memory:submit' }));
     }
   });
 
@@ -565,8 +845,9 @@ io.on('connection', (socket) => {
       const gameState = await requestGameState({
         gameId,
       });
-      socket.emit('room:state', gameState);
-      socket.emit('game_state', gameState);
+      const decorated = decorateGameState(gameState, gameId);
+      socket.emit('room:state', decorated);
+      socket.emit('game_state', decorated);
     } catch (error) {
       socket.emit('error', toSocketErrorPayload(error, { action: 'room:state:request' }));
     }
@@ -581,8 +862,9 @@ io.on('connection', (socket) => {
 
       await requireSocketPlayer(socket, { gameId, playerId });
       const gameState = await requestGameState({ gameId });
-      socket.emit('room:state', gameState);
-      socket.emit('game_state', gameState);
+      const decorated = decorateGameState(gameState, gameId);
+      socket.emit('room:state', decorated);
+      socket.emit('game_state', decorated);
     } catch (error) {
       socket.emit('error', toSocketErrorPayload(error, { action: 'request_game_state' }));
     }
