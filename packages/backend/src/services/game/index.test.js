@@ -198,3 +198,41 @@ test('joinGame should block moving an active player out of a room with other act
     await rm(dbPath, { force: true });
   }
 });
+
+test('normalizeMemorySubmissionWords should coerce missing slots to empty strings', async () => {
+  const moduleUrl = new URL(`./index.js?memory-normalize=${Date.now()}-${Math.random()}`, import.meta.url);
+  const { normalizeMemorySubmissionWords } = await import(moduleUrl.href);
+
+  const normalized = normalizeMemorySubmissionWords(['Alpha', '', null], 5);
+  assert.deepEqual(normalized, ['alpha', '', '', '', '']);
+});
+
+test('scoreMemorySubmission should award exact and misplaced scores plus full bonus', async () => {
+  const moduleUrl = new URL(`./index.js?memory-score=${Date.now()}-${Math.random()}`, import.meta.url);
+  const { scoreMemorySubmission } = await import(moduleUrl.href);
+
+  const score = scoreMemorySubmission(
+    ['cat', 'dog', 'fish', 'bird'],
+    ['cat', 'fish', 'dog', 'bird'],
+  );
+
+  assert.equal(score.exactMatches, 2);
+  assert.equal(score.misplacedMatches, 2);
+  assert.equal(score.fullOrderBonus, 0);
+  assert.equal(score.totalScore, 3);
+});
+
+test('scoreMemorySubmission should award full-order bonus only for perfect order', async () => {
+  const moduleUrl = new URL(`./index.js?memory-perfect=${Date.now()}-${Math.random()}`, import.meta.url);
+  const { scoreMemorySubmission } = await import(moduleUrl.href);
+
+  const score = scoreMemorySubmission(
+    ['sun', 'moon', 'star'],
+    ['sun', 'moon', 'star'],
+  );
+
+  assert.equal(score.exactMatches, 3);
+  assert.equal(score.misplacedMatches, 0);
+  assert.equal(score.fullOrderBonus, 5);
+  assert.equal(score.totalScore, 8);
+});
