@@ -123,6 +123,7 @@ export default function Home({ navigate }) {
   const [roomCode, setRoomCode] = useState('');
   const [joinExpanded, setJoinExpanded] = useState(false);
   const [soloMode, setSoloMode] = useState(false);
+  const [gameMode, setGameMode] = useState('race');
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -176,6 +177,7 @@ export default function Home({ navigate }) {
         startWord: created.startWord,
         endWord: created.endWord,
         status: created.status,
+        gameMode,
       });
 
       if (soloMode) {
@@ -190,10 +192,12 @@ export default function Home({ navigate }) {
           code: created.code,
           gameId: created.gameId,
           playerId: guest.playerId,
+          gameMode,
         });
 
-        await startedPromise;
-        navigate(`/game/${encodeURIComponent(created.code)}`);
+        const started = await startedPromise;
+        const nextMode = started?.mode || gameMode;
+        navigate(`/${nextMode === 'memory' ? 'memory' : 'game'}/${encodeURIComponent(created.code)}`);
         return;
       }
 
@@ -250,6 +254,7 @@ export default function Home({ navigate }) {
         startWord: joined.startWord,
         endWord: joined.endWord,
         status: joined.status,
+        gameMode: joined.mode || 'race',
       });
 
       navigate(`/lobby/${encodeURIComponent(resolvedCode)}`);
@@ -320,6 +325,41 @@ export default function Home({ navigate }) {
             />
             <span>Solo Mode (create room and auto-start immediately)</span>
           </label>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-3">
+          <p className="text-xs text-slate-500 font-syne uppercase tracking-wide">Game Mode</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className={`rounded border px-3 py-2 text-sm font-semibold transition-colors ${
+                gameMode === 'race'
+                  ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
+                  : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
+              }`}
+              disabled={isBusy}
+              onClick={() => setGameMode('race')}
+            >
+              Race
+            </button>
+            <button
+              type="button"
+              className={`rounded border px-3 py-2 text-sm font-semibold transition-colors ${
+                gameMode === 'memory'
+                  ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
+                  : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
+              }`}
+              disabled={isBusy}
+              onClick={() => setGameMode('memory')}
+            >
+              Memory
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">
+            {soloMode
+              ? `Solo start will launch ${gameMode === 'memory' ? 'Memory Round' : 'Race mode'}.`
+              : 'Create a room first, then host can still change mode in lobby.'}
+          </p>
         </div>
 
         {joinExpanded && (
