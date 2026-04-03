@@ -59,6 +59,12 @@ const WORD_PAIRS = [
   { startWord: 'thread', endWord: 'fabric' },
 ];
 
+const MEMORY_WORD_BANK = [
+  'anchor', 'velvet', 'lantern', 'compass', 'copper', 'harbor', 'thunder', 'feather', 'signal', 'ember',
+  'canyon', 'marble', 'orbit', 'harvest', 'ripple', 'mirror', 'saffron', 'engine', 'quartz', 'fable',
+  'forest', 'helmet', 'window', 'saturn', 'piano', 'rocket', 'lighthouse', 'tunnel', 'meadow', 'canvas',
+];
+
 /**
  * Returns all available pairs.
  * @returns {Array<{startWord:string,endWord:string}>}
@@ -94,10 +100,30 @@ export function getRandomWordPair() {
   return WORD_PAIRS[index];
 }
 
+/**
+ * Returns a random memory sequence without duplicates.
+ * @param {number} count
+ * @returns {string[]}
+ */
+export function getRandomMemoryWords(count = 10) {
+  const size = Math.max(1, Math.min(Number(count || 10), MEMORY_WORD_BANK.length));
+  const pool = [...MEMORY_WORD_BANK];
+
+  for (let index = pool.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const temp = pool[index];
+    pool[index] = pool[swapIndex];
+    pool[swapIndex] = temp;
+  }
+
+  return pool.slice(0, size);
+}
+
 const wordService = {
   getAllWordPairs,
   getWordPairByIndex,
   getRandomWordPair,
+  getRandomMemoryWords,
 };
 
 export default wordService;
