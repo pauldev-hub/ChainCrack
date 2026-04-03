@@ -587,20 +587,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static frontend files in production
+// Serve static frontend files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(frontendDistPath));
-  // SPA fallback: serve index.html for unknown routes (except /api)
-  app.get('/*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(frontendDistPath, 'index.html'));
-    }
-  });
-}
+app.use(express.static(frontendDistPath));
+// SPA fallback: serve index.html for unknown routes (except /api)
+app.get('/*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  }
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
