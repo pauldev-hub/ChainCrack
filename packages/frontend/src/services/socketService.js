@@ -67,7 +67,7 @@ export function getSocket() {
     return socketInstance;
   }
 
-  socketInstance = io(import.meta.env.VITE_WS_URL || 'ws://localhost:5000', {
+  socketInstance = io(import.meta.env.VITE_WS_URL || undefined, {
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,

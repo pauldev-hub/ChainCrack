@@ -14,7 +14,8 @@ import axios from 'axios';
  * @returns {Object} Axios instance
  */
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  // In production, default to same-origin so Render serves API + frontend seamlessly.
+  baseURL: import.meta.env.VITE_API_URL || '',
   headers: {
     'Content-Type': 'application/json',
   },
