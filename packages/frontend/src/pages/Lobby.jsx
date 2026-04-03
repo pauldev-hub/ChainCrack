@@ -64,6 +64,7 @@ export default function Lobby({ code, navigate }) {
   const [startWord, setStartWord] = useState('');
   const [endWord, setEndWord] = useState('');
   const [hostId, setHostId] = useState(null);
+  const [gameMode, setGameMode] = useState('race');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
@@ -82,6 +83,7 @@ export default function Lobby({ code, navigate }) {
       setHostId(cachedRoom.hostId || null);
       setStartWord(cachedRoom.startWord || '');
       setEndWord(cachedRoom.endWord || '');
+      setGameMode(cachedRoom.gameMode || 'race');
     }
 
     const onRoomJoined = (payload) => {
@@ -95,6 +97,7 @@ export default function Lobby({ code, navigate }) {
       setGameId(payload.gameId || '');
       setStartWord(payload.startWord || '');
       setEndWord(payload.endWord || '');
+      setGameMode(payload.mode || 'race');
 
       if (payload.hostId) {
         setHostId(payload.hostId);
@@ -107,6 +110,7 @@ export default function Lobby({ code, navigate }) {
         startWord: payload.startWord,
         endWord: payload.endWord,
         status: payload.status,
+        gameMode: payload.mode || 'race',
       });
     };
 
@@ -129,6 +133,7 @@ export default function Lobby({ code, navigate }) {
       setGameId(state.game.id || '');
       setStartWord(state.game.start_word || '');
       setEndWord(state.game.end_word || '');
+      setGameMode(state.game.mode || 'race');
 
       setActiveRoom({
         code: state.game.code || normalizedCode,
@@ -137,10 +142,11 @@ export default function Lobby({ code, navigate }) {
         startWord: state.game.start_word,
         endWord: state.game.end_word,
         status: state.game.status,
+        gameMode: state.game.mode || 'race',
       });
 
       if (state.game.status === 'active' && state.game.started_at) {
-        navigate(`/game/${encodeURIComponent(normalizedCode)}`);
+        navigate(`/${state.game.mode === 'memory' ? 'memory' : 'game'}/${encodeURIComponent(normalizedCode)}`);
       }
     };
 
@@ -206,9 +212,10 @@ export default function Lobby({ code, navigate }) {
         startWord: payload.startWord || cachedRoom?.startWord,
         endWord: payload.endWord || cachedRoom?.endWord,
         status: payload.status,
+        gameMode: payload.mode || cachedRoom?.gameMode || 'race',
       });
 
-      navigate(`/game/${encodeURIComponent(normalizedCode)}`);
+      navigate(`/${payload.mode === 'memory' ? 'memory' : 'game'}/${encodeURIComponent(normalizedCode)}`);
     };
 
     const onError = (payload) => {
@@ -268,6 +275,7 @@ export default function Lobby({ code, navigate }) {
       code: normalizedCode,
       gameId: gameId || undefined,
       playerId,
+      gameMode,
     });
   };
 
@@ -331,15 +339,45 @@ export default function Lobby({ code, navigate }) {
 
         <div className="mt-6">
           {isHost ? (
-            <button
-              type="button"
-              className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={activePlayers.length < 1}
-              onClick={handleStartGame}
-            >
-              <Play size={16} />
-              <span>Start Game</span>
-            </button>
+            <div className="space-y-3">
+              <div className="rounded border border-slate-700 bg-slate-950 p-3">
+                <p className="text-xs text-slate-500 font-syne uppercase tracking-wide">Game Mode</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    className={`rounded border px-3 py-2 text-sm font-semibold transition-colors ${
+                      gameMode === 'race'
+                        ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
+                        : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
+                    }`}
+                    onClick={() => setGameMode('race')}
+                  >
+                    Race
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded border px-3 py-2 text-sm font-semibold transition-colors ${
+                      gameMode === 'memory'
+                        ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
+                        : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500'
+                    }`}
+                    onClick={() => setGameMode('memory')}
+                  >
+                    Memory
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={activePlayers.length < 1}
+                onClick={handleStartGame}
+              >
+                <Play size={16} />
+                <span>Start {gameMode === 'memory' ? 'Memory Round' : 'Game'}</span>
+              </button>
+            </div>
           ) : (
             <button
               type="button"
