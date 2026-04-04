@@ -127,9 +127,9 @@ export default function Lobby({ code, navigate }) {
       }
 
       const normalized = normalizePlayerRows(state.players);
-      const resolvedHostId = deduceHostId(normalized);
+      const resolvedHostId = state.hostId || deduceHostId(normalized);
       setPlayers(normalized);
-      setHostId((currentHostId) => currentHostId || resolvedHostId);
+      setHostId((currentHostId) => state.hostId || currentHostId || resolvedHostId);
       setGameId(state.game.id || '');
       setStartWord(state.game.start_word || '');
       setEndWord(state.game.end_word || '');
