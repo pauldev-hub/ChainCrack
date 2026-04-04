@@ -334,6 +334,46 @@ export default function Game({ code, navigate }) {
       }
     };
 
+    const onPlayerJoined = (payload) => {
+      if (!payload?.playerId) {
+        return;
+      }
+
+      setPlayers((existing) => {
+        const index = existing.findIndex((row) => row.id === payload.playerId);
+        if (index === -1) {
+          return [
+            ...existing,
+            {
+              id: payload.playerId,
+              name: payload.playerName || 'Player',
+              is_active: true,
+            },
+          ];
+        }
+
+        const next = [...existing];
+        next[index] = {
+          ...next[index],
+          name: payload.playerName || next[index].name,
+          is_active: true,
+        };
+        return next;
+      });
+    };
+
+    const onPlayerLeft = (payload) => {
+      if (!payload?.playerId) {
+        return;
+      }
+
+      setPlayers((existing) => existing.map((row) => (
+        row.id === payload.playerId
+          ? { ...row, is_active: false }
+          : row
+      )));
+    };
+
     const onRevealChains = (payload) => {
       if (!matchesRoomPayload(payload, { roomCode, gameId: gameIdRef.current })) {
         return;
@@ -407,6 +447,8 @@ export default function Game({ code, navigate }) {
     socket.on('game:tick', onTick);
     socket.on('submission_received', onSubmissionReceived);
     socket.on('submission_validated', onSubmissionValidated);
+    socket.on('room:playerJoined', onPlayerJoined);
+    socket.on('room:playerLeft', onPlayerLeft);
     socket.on('reveal_chains', onRevealChains);
     socket.on('vote_phase_started', onVotePhaseStarted);
     socket.on('voting_closed', onVotingClosed);
@@ -437,6 +479,8 @@ export default function Game({ code, navigate }) {
       socket.off('game:tick', onTick);
       socket.off('submission_received', onSubmissionReceived);
       socket.off('submission_validated', onSubmissionValidated);
+      socket.off('room:playerJoined', onPlayerJoined);
+      socket.off('room:playerLeft', onPlayerLeft);
       socket.off('reveal_chains', onRevealChains);
       socket.off('vote_phase_started', onVotePhaseStarted);
       socket.off('voting_closed', onVotingClosed);
