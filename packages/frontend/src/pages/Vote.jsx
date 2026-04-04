@@ -120,6 +120,15 @@ export default function Vote({ code, navigate }) {
   const chainsRef = React.useRef([]);
   const voteCountsRef = React.useRef({});
   const voteEndsAtRef = React.useRef(null);
+  const voteSubmitTimeoutRef = React.useRef(null);
+
+  const clearVoteSubmitTimeout = React.useCallback(() => {
+    if (!voteSubmitTimeoutRef.current) {
+      return;
+    }
+    clearTimeout(voteSubmitTimeoutRef.current);
+    voteSubmitTimeoutRef.current = null;
+  }, []);
 
   useEffect(() => {
     startWordRef.current = startWord;
@@ -362,6 +371,7 @@ export default function Vote({ code, navigate }) {
         voteCounts: nextVoteCounts,
         voteEndsAt: voteEndsAtRef.current,
       });
+      clearVoteSubmitTimeout();
       setIsSubmitting(false);
     };
 
@@ -369,6 +379,7 @@ export default function Vote({ code, navigate }) {
       if (!matchesRoomPayload(payload, { roomCode, gameId: gameIdRef.current })) {
         return;
       }
+      clearVoteSubmitTimeout();
       navigateToResults(payload);
     };
 
@@ -376,10 +387,12 @@ export default function Vote({ code, navigate }) {
       if (!matchesRoomPayload(payload, { roomCode, gameId: gameIdRef.current })) {
         return;
       }
+      clearVoteSubmitTimeout();
       navigateToResults(payload);
     };
 
     const onError = (payload) => {
+      clearVoteSubmitTimeout();
       setIsSubmitting(false);
       setError(payload?.message || 'Socket error');
     };
@@ -406,6 +419,7 @@ export default function Vote({ code, navigate }) {
     });
 
     return () => {
+      clearVoteSubmitTimeout();
       socket.off('room:joined', onRoomJoined);
       socket.off('room:state', onRoomState);
       socket.off('reveal_chains', onRevealChains);
@@ -424,6 +438,7 @@ export default function Vote({ code, navigate }) {
     roomCode,
     socket,
     updateGameId,
+    clearVoteSubmitTimeout,
   ]);
 
   const toggleVoteTarget = (targetId) => {
@@ -462,7 +477,13 @@ export default function Vote({ code, navigate }) {
     }
 
     setError('');
+    clearVoteSubmitTimeout();
     setIsSubmitting(true);
+    voteSubmitTimeoutRef.current = setTimeout(() => {
+      setIsSubmitting(false);
+      setError('Vote submission timed out. Please try again.');
+      voteSubmitTimeoutRef.current = null;
+    }, 10000);
 
     socket.emit('vote_chain', {
       gameId,
