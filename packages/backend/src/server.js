@@ -238,6 +238,15 @@ async function emitScoreUpdate(gameId) {
   io.to(gameId).emit('room:scores', scores);
 }
 
+async function buildRoomStatePayload(gameId) {
+  const gameState = decorateGameState(await requestGameState({ gameId }), gameId);
+  const { host } = await getRoomHost({ gameId });
+  return {
+    ...gameState,
+    hostId: host?.id || null,
+  };
+}
+
 function rankMemoryResults(rows) {
   const sorted = [...rows].sort((left, right) => {
     if (Number(right.totalScore || 0) !== Number(left.totalScore || 0)) {
@@ -434,7 +443,7 @@ async function startRoomLifecycle(gameId, code, mode = 'race', revealVariant = '
     try {
       const revealPayload = await prepareRevealPhase({ gameId });
       io.to(gameId).emit('reveal_chains', revealPayload);
-      const gameState = decorateGameState(await requestGameState({ gameId }), gameId);
+      const gameState = await buildRoomStatePayload(gameId);
       io.to(gameId).emit('room:state', gameState);
 
       timers.revealTimeout = setTimeout(async () => {
@@ -592,12 +601,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 
+app.use('/api', apiRoutes);
 app.use(express.static(frontendDistPath));
-// SPA fallback: serve index.html for unknown routes (except /api)
+// SPA fallback: serve index.html for unknown non-API routes.
 app.get('/*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-  }
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // Health check endpoint
@@ -618,8 +626,6 @@ app.get('/', (req, res) => {
     },
   });
 });
-
-app.use('/api', apiRoutes);
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {
@@ -703,7 +709,7 @@ io.on('connection', (socket) => {
       await requireSocketPlayer(socket, { gameId, playerId });
       const started = await startRoom({ gameId, playerId, mode: gameMode });
       const host = await getRoomHost({ gameId });
-      const gameState = decorateGameState(await requestGameState({ gameId }), gameId);
+      const gameState = await buildRoomStatePayload(gameId);
       const startedPayload = {
         code: gameRef.code,
         gameId,
@@ -857,10 +863,7 @@ io.on('connection', (socket) => {
       const playerId = payload.playerId || session?.playerId;
 
       await requireSocketPlayer(socket, { gameId, playerId });
-      const gameState = await requestGameState({
-        gameId,
-      });
-      const decorated = decorateGameState(gameState, gameId);
+      const decorated = await buildRoomStatePayload(gameId);
       socket.emit('room:state', decorated);
       socket.emit('game_state', decorated);
     } catch (error) {
@@ -876,8 +879,7 @@ io.on('connection', (socket) => {
       const playerId = payload.playerId || session?.playerId;
 
       await requireSocketPlayer(socket, { gameId, playerId });
-      const gameState = await requestGameState({ gameId });
-      const decorated = decorateGameState(gameState, gameId);
+      const decorated = await buildRoomStatePayload(gameId);
       socket.emit('room:state', decorated);
       socket.emit('game_state', decorated);
     } catch (error) {
