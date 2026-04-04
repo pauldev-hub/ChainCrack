@@ -138,7 +138,7 @@ export default function Results({ gameId, navigate }) {
         </section>
       )}
 
-      {!isLoading && replay && (
+      {!isLoading && (replay || finalScores.length > 0) && (
         <>
           {chainOfRoundPlayerId && (
             <section className="card border-emerald-400 shadow-lg shadow-emerald-400/20">
@@ -179,26 +179,28 @@ export default function Results({ gameId, navigate }) {
             </ul>
           </section>
 
-          <section className="card">
-            <h3 className="text-lg font-bold font-syne text-white">Validation Timeline</h3>
-            <ul className="mt-3 space-y-2">
-              {(replay.timeline || []).map((step) => (
-                <li
-                  key={step.wordChainId}
-                  className={`rounded border px-3 py-2 ${step.isValid ? 'border-slate-800 bg-slate-950' : 'border-red-500/40 bg-red-500/10'}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-mono text-emerald-400">{step.word}</p>
-                    <p className="text-xs font-mono text-slate-500">step {step.stepNumber}</p>
-                  </div>
-                  <p className="mt-1 text-xs font-mono text-slate-500">
-                    {step.playerName} • {step.status} • score {step.aiScore}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">{step.aiFeedback || 'No AI feedback'}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {replay && (
+            <section className="card">
+              <h3 className="text-lg font-bold font-syne text-white">Validation Timeline</h3>
+              <ul className="mt-3 space-y-2">
+                {(replay.timeline || []).map((step) => (
+                  <li
+                    key={step.wordChainId}
+                    className={`rounded border px-3 py-2 ${step.isValid ? 'border-slate-800 bg-slate-950' : 'border-red-500/40 bg-red-500/10'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-mono text-emerald-400">{step.word}</p>
+                      <p className="text-xs font-mono text-slate-500">step {step.stepNumber}</p>
+                    </div>
+                    <p className="mt-1 text-xs font-mono text-slate-500">
+                      {step.playerName} • {step.status} • score {step.aiScore}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">{step.aiFeedback || 'No AI feedback'}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="card">
             <h3 className="text-lg font-bold font-syne text-white">Vote Totals</h3>
