@@ -10,6 +10,35 @@ const ACTIVE_ROOM_KEY = 'chaincrack.activeRoom';
 const LAST_RESULTS_KEY = 'chaincrack.lastResults';
 const GAMEPLAY_STATE_KEY = 'chaincrack.gameplayState';
 
+function getStorage() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.sessionStorage;
+}
+
+function clearPlayerNameOnHomeReload() {
+  if (typeof window === 'undefined' || typeof performance === 'undefined') {
+    return;
+  }
+
+  const navigationEntries = performance.getEntriesByType?.('navigation') || [];
+  const navigationType = navigationEntries[0]?.type;
+  if (navigationType !== 'reload') {
+    return;
+  }
+
+  const path = String(window.location?.pathname || '');
+  if (path !== '/' && path !== '') {
+    return;
+  }
+
+  getStorage()?.removeItem(PLAYER_NAME_KEY);
+}
+
+clearPlayerNameOnHomeReload();
+
 function generateUuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -28,13 +57,14 @@ function generateUuid() {
  * @returns {string}
  */
 export function getOrCreatePlayerId() {
-  const existing = localStorage.getItem(PLAYER_ID_KEY);
+  const storage = getStorage();
+  const existing = storage?.getItem(PLAYER_ID_KEY);
   if (existing) {
     return existing;
   }
 
   const created = generateUuid();
-  localStorage.setItem(PLAYER_ID_KEY, created);
+  storage?.setItem(PLAYER_ID_KEY, created);
   return created;
 }
 
@@ -44,7 +74,7 @@ export function getOrCreatePlayerId() {
  * @returns {void}
  */
 export function setPlayerName(name) {
-  localStorage.setItem(PLAYER_NAME_KEY, name);
+  getStorage()?.setItem(PLAYER_NAME_KEY, name);
 }
 
 /**
@@ -52,7 +82,7 @@ export function setPlayerName(name) {
  * @returns {string}
  */
 export function getPlayerName() {
-  return localStorage.getItem(PLAYER_NAME_KEY) || '';
+  return getStorage()?.getItem(PLAYER_NAME_KEY) || '';
 }
 
 /**
@@ -71,7 +101,7 @@ export function setActiveRoom(room) {
     gameMode: room?.gameMode || null,
   };
 
-  localStorage.setItem(ACTIVE_ROOM_KEY, JSON.stringify(payload));
+  getStorage()?.setItem(ACTIVE_ROOM_KEY, JSON.stringify(payload));
 }
 
 /**
@@ -79,7 +109,7 @@ export function setActiveRoom(room) {
  * @returns {{code:string,gameId:string,startWord?:string|null,endWord?:string|null,hostId?:string|null,status?:string|null,gameMode?:string|null}|null}
  */
 export function getActiveRoom() {
-  const raw = localStorage.getItem(ACTIVE_ROOM_KEY);
+  const raw = getStorage()?.getItem(ACTIVE_ROOM_KEY);
   if (!raw) {
     return null;
   }
@@ -100,7 +130,7 @@ export function getActiveRoom() {
  * @returns {void}
  */
 export function clearActiveRoom() {
-  localStorage.removeItem(ACTIVE_ROOM_KEY);
+  getStorage()?.removeItem(ACTIVE_ROOM_KEY);
 }
 
 /**
@@ -109,7 +139,7 @@ export function clearActiveRoom() {
  * @returns {void}
  */
 export function setLastResults(results) {
-  localStorage.setItem(LAST_RESULTS_KEY, JSON.stringify(results || null));
+  getStorage()?.setItem(LAST_RESULTS_KEY, JSON.stringify(results || null));
 }
 
 /**
@@ -117,7 +147,7 @@ export function setLastResults(results) {
  * @returns {object|null}
  */
 export function getLastResults() {
-  const raw = localStorage.getItem(LAST_RESULTS_KEY);
+  const raw = getStorage()?.getItem(LAST_RESULTS_KEY);
   if (!raw) {
     return null;
   }
@@ -134,7 +164,7 @@ export function getLastResults() {
  * @returns {void}
  */
 export function clearLastResults() {
-  localStorage.removeItem(LAST_RESULTS_KEY);
+  getStorage()?.removeItem(LAST_RESULTS_KEY);
 }
 
 /**
@@ -169,7 +199,7 @@ export function setGameplayState(payload) {
     updatedAt: payload?.updatedAt || new Date().toISOString(),
   };
 
-  localStorage.setItem(GAMEPLAY_STATE_KEY, JSON.stringify(state));
+  getStorage()?.setItem(GAMEPLAY_STATE_KEY, JSON.stringify(state));
 }
 
 /**
@@ -188,7 +218,7 @@ export function setGameplayState(payload) {
  * }|null}
  */
 export function getGameplayState() {
-  const raw = localStorage.getItem(GAMEPLAY_STATE_KEY);
+  const raw = getStorage()?.getItem(GAMEPLAY_STATE_KEY);
   if (!raw) {
     return null;
   }
@@ -222,7 +252,7 @@ export function getGameplayState() {
  * @returns {void}
  */
 export function clearGameplayState() {
-  localStorage.removeItem(GAMEPLAY_STATE_KEY);
+  getStorage()?.removeItem(GAMEPLAY_STATE_KEY);
 }
 
 export default {

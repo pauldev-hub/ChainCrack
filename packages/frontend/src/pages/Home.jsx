@@ -129,7 +129,7 @@ export default function Home({ navigate }) {
 
   const safeName = name.trim().slice(0, 32);
   const canStartAction = safeName.length > 0 && !isBusy;
-  const canJoinNow = canStartAction && roomCode.trim().length > 0;
+  const canJoinNow = safeName.length > 0 && roomCode.trim().length > 0 && !isBusy;
 
   const authorizeGuest = async () => {
     const playerId = getOrCreatePlayerId();
@@ -216,11 +216,17 @@ export default function Home({ navigate }) {
 
   const handleJoinRoom = async () => {
     if (!joinExpanded) {
+      setError('');
       setJoinExpanded(true);
       return;
     }
 
     if (!canJoinNow) {
+      if (!safeName.length) {
+        setError('Enter your player name first');
+      } else if (!roomCode.trim().length) {
+        setError('Enter a room code to join');
+      }
       return;
     }
 
@@ -306,7 +312,7 @@ export default function Home({ navigate }) {
           <button
             type="button"
             className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!canStartAction}
+            disabled={isBusy}
             onClick={handleJoinRoom}
           >
             {joinExpanded ? 'Join Now' : 'Join Room'}
